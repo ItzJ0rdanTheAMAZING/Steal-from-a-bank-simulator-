@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-select=none">
+    <title>3D Bank Stealing Simulator feat. Timmy</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #020205;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            display: block;
+        }
+
+        /* HUD Design Layout */
+        .hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 1.1rem;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .hud-card {
+            margin-bottom: 10px;
+            background: rgba(5, 5, 12, 0.85);
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: 1px solid rgba(0, 255, 204, 0.3);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.6);
+            backdrop-filter: blur(4px);
+        }
+
+        .hud-title {
+            font-size: 0.75rem;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 2px;
+        }
+
+        .hud-value {
+            font-weight: bold;
+            font-size: 1.4rem;
+        }
+
+        #hud-money { color: #2ecc71; text-shadow: 0 0 8px rgba(46,204,113,0.3); }
+        #hud-level { color: #e74c3c; text-shadow: 0 0 8px rgba(231,76,60,0.3); }
+        #hud-objective { color: #f1c40f; font-size: 1.05rem; }
+
+        /* Retro Arcade D-PAD Layout (4 buttons in a square cross) */
+        .dpad-container {
+            position: absolute;
+            bottom: 25px;
+            left: 25px;
+            display: grid;
+            grid-template-columns: repeat(3, 65px);
+            grid-template-rows: repeat(3, 65px);
+            gap: 8px;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 12px;
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.12);
+            z-index: 10;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .dpad-btn {
+            background: rgba(255, 255, 255, 0.08);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            font-size: 1.6rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.1s ease;
+        }
+
+        .dpad-btn:hover {
+            background: rgba(255, 255, 255, 0.18);
+        }
+
+        .dpad-btn:active {
+            background: #00ffcc;
+            color: #000;
+            box-shadow: 0 0 20px #00ffcc;
+            transform: scale(0.92);
+        }
+
+        #btn-up { grid-column: 2; grid-row: 1; }
+        #btn-left { grid-column: 1; grid-row: 2; }
+        #btn-right { grid-column: 3; grid-row: 2; }
+        #btn-down { grid-column: 2; grid-row: 3; }
+
+        /* Timmy's Shop Trigger Button */
+        #shop-btn {
+            position: absolute;
+            bottom: 25px;
+            right: 25px;
+            padding: 18px 35px;
+            font-size: 1.15rem;
+            background: linear-gradient(135deg, #9b59b6, #8e44ad);
+            color: white;
+            border: none;
+            border-radius: 14px;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 6px 20px rgba(142, 68, 173, 0.4);
+            transition: transform 0.2s, box-shadow 0.2s;
+            z-index: 10;
+        }
+
+        #shop-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(142, 68, 173, 0.6);
+        }
+
+        #shop-btn:active { transform: translateY(1px); }
+
+        /* Shop Overlay Modal UI */
+        #shop-modal {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(12, 10, 18, 0.96);
+            border: 2px solid #9b59b6;
+            border-radius: 16px;
+            padding: 30px;
+            color: white;
+            width: 360px;
+            box-shadow: 0 0 40px rgba(155, 89, 182, 0.3);transition: transform 0.2s, box-shadow 0.2s;
+            z-index: 10;
+        }
+
+        #shop-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(142, 68, 173, 0.6);
+        }
+
+        #shop-btn:active { transform: translateY(1px); }
+
+        /* Shop Overlay Modal UI */
+        #shop-modal {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(12, 10, 18, 0.96);
+            border: 2px solid #9b59b6;
+            border-radius: 16px;
+            padding: 30px;
+            color: white;
+            width: 360px;
+            box-shadow: 0 0 40px rgba(155, 89, 182, 0.3);
+            z-index: 20;
+            backdrop-filter: blur(10px);
+        }
+
+        .shop-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255,255,255,0.15);
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        .shop-header h3 {
+            margin: 0;
+            font-size: 1.4rem;
+            letter-spacing: 0.5px;
+            color: #dfadfc;
+        }
+
+        .shop-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            background: rgba(255,255,255,0.04);
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .shop-item strong {
+            display: block;
+            font-size: 1.05rem;
+            margin-bottom: 2px;
+        }
+
+        .shop-item small {
+            color: #aaa;
+            display: block;
+            margin-bottom: 5px;
+            font-size: 0.85rem;
+        }
+
+        .shop-item span {
+            color: #2ecc71;
+            font-weight: bold;
+        }
+
+        .shop-item button {
+            background: #9b59b6;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        .shop-item button:hover { background: #8e44ad; }
+        .shop-item button:disabled { background: #444; color:#777; cursor: not-allowed; }
+
+        #close-shop {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        #close-shop:hover { background: #e74c3c; }
+
+        /* Security Trigger Screen Flash Alert */
+        #alert-msg {
+            position: absolute;
+            top: 35%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 2.8rem;
+            font-weight: 900;
+            color: #e74c3c;
+            text-shadow: 0 0 15px rgba(231,76,60,0.6), 0 0 30px black;
+            display: none;
+            text-align: center;
+            pointer-events: none;
+            z-index: 15;
+            letter-spacing: 2px;
+            line-height: 1.2;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+    <div id="canvas-container"></div>
+
+    <div class="hud">
+        <div class="hud-card">
+            <div class="hud-title">Stolen Money</div>
+            <div class="hud-value" id="hud-money">$0</div>
+        </div>
+        <div class="hud-card">
+            <div class="hud-title">Bank Security Tier</div>
+            <div class="hud-value" id="hud-level">Rank 1</div>
+        </div>
+        <div class="hud-card">
+            <div class="hud-title">Objective Status</div>
+            <div id="hud-objective">Infiltrate the Grid: Snatch the Vault Cash!</div>
+        </div>
+    </div>
+
+    <div class="dpad-container">
+        <div class="dpad-btn" id="btn-up">▲</div>
+        <div class="dpad-btn" id="btn-left">◀</div>
+        <div class="dpad-btn" id="btn-right">▶</div>
+        <div class="dpad-btn" id="btn-down">▼</div>
+    </div>
+
+    <div id="alert-msg">ALARM DETECTED!<br><span style="font-size:1.4rem; font-weight:normal; color:#fff;">System Resetting Unit...</span></div>
+
+    <button id="shop-btn" onclick="toggleShop(true)">Talk to Timmy</button>
+
+    <div id="shop-modal">
+        <div class="shop-header">
+            <h3>Timmy's Core Upgrades</h3>
+            <button id="close-shop" onclick="toggleShop(false)">X</button>
+        </div>
+        
+        <p style="margin: 0 0 15px 0; font-size: 0.9rem; color: #dfadfc; font-style: italic;">
+            "Hey pal, got some premium modifications for you... if you have the cash."
+        </p>
+
+        <div class="shop-item">
+            <div>
+                <strong>Overclocked Sneakers</strong>
+                <small>Boosts drone travel velocity (+15%)</small>
+                <span id="speed-cost">Cost: $100</span>
+            </div>
+            <button id="buy-speed" onclick="buyUpgrade('speed')">Purchase</button>
+        </div>
+
+        <div class="shop-item">
+            <div>
+                <strong>High-Density Bag</strong>
+                <small>Compresses and extracts more cash (+50%)</small>
+                <span id="bag-cost">Cost: $150</span>
+            </div>
+            <button id="buy-bag" onclick="buyUpgrade('bag')">Purchase</button>
+        </div>
+        <div style="text-align: center; color: #aaa; font-size: 0.85rem; margin-top: 15px;">
+            Your Wallet Balance: <span id="shop-money" style="color:#2ecc71; font-weight:bold;">$0</span>
+        </div>
+    </div>
+
+    <script>
+        // --- GAME INSTANCE CONFIG ---
+        let config = {
+            money: 0,
+            speedLevel: 0,
+            bagLevel: 0,
+            baseSpeed: 0.18,
+            basePayout: 100,
+            heistLevel: 1
+        };
+
+        let currentVelocity = config.baseSpeed;
+        let carryingLoot = false; 
+
+        // --- GRAPHICS CORE INITIALIZATION ---
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x020206);
+        scene.fog = new THREE.FogExp2(0x020206, 0.035);
+
+        const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        container.appendChild(renderer.domElement);
+
+        // --- SCENE ILLUMINATION ---
+        const ambientLight = new THREE.AmbientLight(0x111126, 1.6);
+        scene.add(ambientLight);
+
+        const accentLight = new THREE.DirectionalLight(0x9b59b6, 0.7);
+        accentLight.position.set(5, 20, 5);
+        scene.add(accentLight);
+
+        // --- WORLD GENERATION ---
+        // Metallic Bank Flooring
+        const floorGeo = new THREE.PlaneGeometry(40, 110);
+        const floorMat = new THREE.MeshStandardMaterial({ color: 0x0e0e12, roughness: 0.4 });
+        const floor = new THREE.Mesh(floorGeo, floorMat);
+        floor.rotation.x = -Math.PI / 2;
+        floor.position.z = -25;
+        scene.add(floor);
+
+        // Security Laser alignment grid lines
+        const floorGrid = new THREE.GridHelper(110, 40, 0x9b59b6, 0x141422);
+        floorGrid.position.set(0, 0.02, -25);
+        floorGrid.rotation.y = Math.PI / 2;
+        scene.add(floorGrid);
+
+        // Structural Perimeter Walls
+        const wallMat = new THREE.MeshStandardMaterial({ color: 0x060609, roughness: 0.8 });
+        const wallL = new THREE.Mesh(new THREE.BoxGeometry(1, 12, 110), wallMat);
+        wallL.position.set(-20.5, 6, -25);
+        scene.add(wallL);
+
+        const wallR = new THREE.Mesh(new THREE.BoxGeometry(1, 12, 110), wallMat);
+        wallR.position.set(20.5, 6, -25);
+        scene.add(wallR);
+
+        // Vault Safety Firewall Wall Partition
+        const vaultWall = new THREE.Mesh(new THREE.BoxGeometry(40, 12, 2), new THREE.MeshStandardMaterial({color: 0x1c1e24, metalness: 0.6}));
+        vaultWall.position.set(0, 6, -65);
+        scene.add(vaultWall);
+
+        // Mechanical Door Outer Gate
+        const gateGeo = new THREE.CylinderGeometry(5, 5, 1.2, 24);
+        const gateMat = new THREE.MeshStandardMaterial({color: 0x34495e, metalness: 0.8, roughness: 0.2});
+        const vaultGate = new THREE.Mesh(gateGeo, gateMat);
+        vaultGate.rotation.x = Math.PI / 2;
+        vaultGate.position.set(0, 5.5, -64.2);
+        scene.add(vaultGate);
+
+        // Stolen Cash Core Pile Target (Floating Octahedron)
+        const cashGeo = new THREE.OctahedronGeometry(1.8, 0);
+        const cashMat = new THREE.MeshStandardMaterial({color: 0x2ecc71, emissive: 0x0f4411, roughness: 0.1, metalness: 0.9});
+        const cashCore = new THREE.Mesh(cashGeo, cashMat);
+        cashCore.position.set(0, 2.5, -73);
+        scene.add(cashCore);
+
+        // Extraction Zone Pad
+        const extractionGeo = new THREE.BoxGeometry(12, 0.1, 8);
+        const extractionMat = new THREE.MeshBasicMaterial({color: 0x2ecc71, wireframe: true});
+        const extractionPad = new THREE.Mesh(extractionGeo, extractionMat);
+        extractionPad.position.set(0, 0.05, 22);
+        scene.add(extractionPad);
+
+        // --- CREATING TIMMY THE SHOP SELLER ---
+        // Let's model a fun retro-futuristic purple robot merchant named Timmy using composite geometries
+        const timmyGroup = new THREE.Group();
+        
+        // Timmy Head
+        const tHead = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1, 1), new THREE.MeshStandardMaterial({color: 0x9b59b6, roughness: 0.3}));
+        tHead.position.y = 3.2;
+        timmyGroup.add(tHead);
+        
+        // Timmy Visor/Eyes
+        const tVisor = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.2, 0.2), new THREE.MeshBasicMaterial({color: 0x00ffcc}));
+        tVisor.position.set(0, 3.2, 0.5);
+        timmyGroup.add(tVisor);
+
+        // Timmy Torso Body
+        const tBody = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.5, 1.5, 8), new THREE.MeshStandardMaterial({color: 0x34495e, metalness: 0.5}));
+        tBody.position.y = 2.0;
+        timmyGroup.add(tBody);
+
+        // Timmy Floating Hologram Base Pedestal
+        const tBase = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.4, 0.4, 16), new THREE.MeshStandardMaterial({color: 0x111, metalness: 0.8}));
+        tBase.position.y = 0.2;
+        timmyGroup.add(tBase);
+
+        // Position Timmy directly next to the extraction base pad zone
+        timmyGroup.position.set(9, 0, 20);
+        scene.add(timmyGroup);
+
+        // Player Operational Drone Sphere
+        const playerGeo = new THREE.SphereGeometry(1.1, 32, 16);
+        const playerMat = new THREE.MeshStandardMaterial({ color: 0x0066ff, emissive: 0x001144, roughness: 0.2 });
+        const userDrone = new THREE.Mesh(playerGeo, playerMat);
+        userDrone.position.set(0, 1.1, 22); 
+        scene.add(userDrone);
+
+        // Runtime arrays
+        let lasers = [];
+        let guards = [];
+
+        // --- RUNTIME THREAT COMPLIANCE COMPILER ---
+        function recompileObstacles() {
+            // Unload existing instances
+            lasers.forEach(l => scene.remove(l.mesh));
+            guards.forEach(g => scene.remove(g.mesh));
+            lasers = [];
+            guards = [];
+
+            let threatScale = config.heistLevel;
+
+            // Compute and generate moving lasers network
+            let laserVolume = Math.min(3 + threatScale, 10);
+            for(let i = 0; i < laserVolume; i++) {
+                let zPos = -10 - (i * 5.2);
+                const laserGeo = new THREE.CylinderGeometry(0.12, 0.12, 40);
+                const laserMat = new THREE.MeshBasicMaterial({color: 0xff0044});
+                const laserMesh = new THREE.Mesh(laserGeo, laserMat);
+                laserMesh.rotation.z = Math.PI / 2;
+                laserMesh.position.set(0, 0.6 + (Math.random() * 3.5), zPos);
+                scene.add(laserMesh);
+
+                lasers.push({
+                    mesh: laserMesh,
+                    speed: (0.045 + (Math.random() * 0.045)) * (1 + threatScale * 0.13),
+                    dir: Math.random() > 0.5 ? 1 : -1
+                });
+            }
+
+            // Compute and generate patrolling AI blocks
+            let guardVolume = Math.min(2 + Math.floor(threatScale / 1.5), 7);
+            for(let i = 0; i < guardVolume; i++) {
+                let zPos = -5 - (i * 8.5);
+                const guardGeo = new THREE.BoxGeometry(2.4, 3.4, 2.4);
+                const guardMat = new THREE.MeshStandardMaterial({color: 0xe67e22, roughness: 0.4});
+                const guardMesh = new THREE.Mesh(guardGeo, guardMat);
+                guardMesh.position.set((Math.random() * 26) - 13, 1.7, zPos);
+                scene.add(guardMesh);
+
+                guards.push({
+                    mesh: guardMesh,
+                    speed: (0.045 + (Math.random() * 0.045)) * (1 + threatScale * 0.09),
+                    dir: Math.random() > 0.5 ? 1 : -1,
+                    minX: -18,
+                    maxX: 18
+                });
+            }
+        }
+
+        // Initialize obstacles
+        recompileObstacles();
+
+        // --- CONTROLS PIPELINE LINKAGE (KEYBOARD & ON-SCREEN DPAD) ---
+        const inputState = { up: false, down: false, left: false, right: false };
+
+        // Desktop keyboard maps
+        window.addEventListener('keydown', (e) => {
+            if(e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') inputState.up = true;
+            if(e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') inputState.down = true;
+            if(e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') inputState.left = true;
+            if(e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') inputState.right = true;
+        });
+        window.addEventListener('keyup', (e) => {
+            if(e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') inputState.up = false;
+            if(e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') inputState.down = false;
+            if(e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') inputState.left = false;
+            if(e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') inputState.right = false;
+        });
+
+        // Touch/Mouse click arcade event routers
+        function routeDpadControl(elementId, command) {
+            const buttonNode = document.getElementById(elementId);
+            const engage = (e) => { e.preventDefault(); inputState[command] = true; };
+            const disengage = (e) => { e.preventDefault(); inputState[command] = false; };
+
+            buttonNode.addEventListener('mousedown', engage);
+            buttonNode.addEventListener('mouseup', disengage);
+            buttonNode.addEventListener('mouseleave', disengage);
+            buttonNode.addEventListener('touchstart', engage);
+            buttonNode.addEventListener('touchend', disengage);
+        }
+
+        routeDpadControl('btn-up', 'up');
+        routeDpadControl('btn-down', 'down');
+        routeDpadControl('btn-left', 'left');
+        routeDpadControl('btn-right', 'right');
+
+        function evaluateVelocityVectors() {
+            let dx = 0;
+            let dz = 0;
+
+            if (inputState.up) dz -= 1;
+            if (inputState.down) dz += 1;
+            if (inputState.left) dx -= 1;
+            if (inputState.right) dx += 1;
+
+            if(dx !== 0 || dz !== 0) {
+                let unitScale = Math.sqrt(dx * dx + dz * dz);
+                userDrone.position.x += (dx / unitScale) * currentVelocity;
+                userDrone.position.z += (dz / unitScale) * currentVelocity;
+            }
+
+            // Enforce layout boundaries
+            if(userDrone.position.x < -18.8) userDrone.position.x = -18.8;
+            if(userDrone.position.x > 18.8) userDrone.position.x = 18.8;
+            if(userDrone.position.z > 26.0) userDrone.position.z = 26.0;
+            if(userDrone.position.z < -77.5) userDrone.position.z = -77.5;
+        }
+
+        // --- CORE EVALUATION LOGIC RULES ---
+        function sendDroneToStart() {
+            userDrone.position.set(0, 1.1, 22);
+            carryingLoot = false;
+            userDrone.material.color.setHex(0x0066ff);
+            userDrone.material.emissive.setHex(0x001144);
+            document.getElementById('hud-objective').innerText = "Evaded System. Snatch the Vault Cash!";
+            document.getElementById('hud-objective').style.color = "#f1c40f";
+        }
+
+        function forceFirewallReboot() {
+            document.getElementById('alert-msg').style.display = 'block';
+            setTimeout(() => document.getElementById('alert-msg').style.display = 'none', 1400);
+            sendDroneToStart();
+        }
+
+        function syncUserInterface() {
+            document.getElementById('hud-money').innerText = `$${config.money}`;
+            document.getElementById('shop-money').innerText = `$${config.money}`;
+            document.getElementById('hud-level').innerText = `Rank ${config.heistLevel}`;
+            
+            // Scaled cost multipliers
+            let speedPrice = Math.round(100 * Math.pow(1.65, config.speedLevel));
+            let bagPrice = Math.round(150 * Math.pow(1.65, config.bagLevel));
+            
+            document.getElementById('speed-cost').innerText = `Cost: $${speedPrice}`;
+            document.getElementById('bag-cost').innerText = `Cost: $${bagPrice}`;
+
+            document.getElementById('buy-speed').disabled = config.money < speedPrice;
+            document.getElementById('buy-bag').disabled = config.money < bagPrice;
+        }
+
+        function toggleShop(open) {
+            document.getElementById('shop-modal').style.display = open ? 'block' : 'none';
+        }
+
+        function buyUpgrade(type) {
+            if(type === 'speed') {
+                let speedPrice = Math.round(100 * Math.pow(1.65, config.speedLevel));
+                if(config.money >= speedPrice) {
+                    config.money -= speedPrice;
+                    config.speedLevel++;
+                    currentVelocity = config.baseSpeed * (1 + config.speedLevel * 0.15);
+                }
+            } else if(type === 'bag') {
+                let bagPrice = Math.round(150 * Math.pow(1.65, config.bagLevel));
+                if(config.money >= bagPrice) {
+                    config.money -= bagPrice;
+                    config.bagLevel++;
+                }
+            }
+            syncUserInterface();
+        }
+
+        // --- GRAPHICS ANIMATION RUNTIME LOOP ---
+        function renderLoop() {
+            requestAnimationFrame(renderLoop);
+            evaluateVelocityVectors();
+
+            // Target cash item spinning loop
+            cashCore.rotation.y += 0.025;
+            cashCore.rotation.z += 0.005;
+
+            // Subtle bobbing animation for Timmy the Shop Vendor
+            timmyGroup.position.y = Math.sin(Date.now() * 0.002) * 0.15;
+            timmyGroup.rotation.y = Math.sin(Date.now() * 0.0005) * 0.2;
+
+            // Over-the-shoulder isometric camera track routing
+            camera.position.set(userDrone.position.x, userDrone.position.y + 16, userDrone.position.z + 14);
+            camera.lookAt(userDrone.position.x, userDrone.position.y + 1, userDrone.position.z);
+
+            // 1. Evaluate moving horizontal security lasers
+            lasers.forEach(laser => {
+                laser.mesh.position.y += laser.speed * laser.dir;
+                if(laser.mesh.position.y > 5.0 || laser.mesh.position.y < 0.4) {
+                    laser.dir *= -1;
+                }
+                
+                let dz = Math.abs(userDrone.position.z - laser.mesh.position.z);
+                let dy = Math.abs(userDrone.position.y - laser.mesh.position.y);
+                if(dz < 0.95 && dy < 1.05) {
+                    forceFirewallReboot();
+                }
+            });
+
+            // 2. Evaluate physical patrolling security blocks
+            guards.forEach(guard => {
+                guard.mesh.position.x += guard.speed * guard.dir;
+                guard.mesh.rotation.y += 0.02;
+                if(guard.mesh.position.x > guard.maxX || guard.mesh.position.x < guard.minX) {
+                    guard.dir *= -1;
+                }
+                
+                if(userDrone.position.distanceTo(guard.mesh.position) < 2.2) {
+                    forceFirewallReboot();
+                }
+            });
+
+            // 3. Operational Milestone Trackers
+            // Bank Vault Room entered
+            if(!carryingLoot && userDrone.position.z < -67) {
+                carryingLoot = true;
+                userDrone.material.color.setHex(0x2ecc71);
+                userDrone.material.emissive.setHex(0x0a3311);
+                document.getElementById('hud-objective').innerText = "LOOT EXTRACTED! Escape to extraction point!";
+                document.getElementById('hud-objective').style.color = "#2ecc71";
+            }
+
+            // Secure Return extraction verification completed
+            if(carryingLoot && userDrone.position.z > 17 && Math.abs(userDrone.position.x) < 6) {
+                let gain = Math.round(config.basePayout * (1 + config.bagLevel * 0.5));
+                config.money += gain;
+                config.heistLevel++; 
+                
+                recompileObstacles(); 
+                sendDroneToStart();
+                syncUserInterface();
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // Handle adaptive resizing dynamically
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Initialize execution sequences
+        syncUserInterface();
+        renderLoop();
+    </script>
+</body>
+</html>
